@@ -5,7 +5,7 @@ import logging
 import configparser
 from classes.s3_object import S3Object
 import s3_functions
-
+from botocore.exceptions import ClientError
 
 
 def get_object(message_body):
@@ -29,7 +29,32 @@ def get_object(message_body):
     return parsed_s3_object
 
 
+def send_sqs_message(ec2_instance_id, outgoing_message_queue_name):
+    # set the sqs resource
+    sqs = boto3.resource('sqs')
+    logging.info('Shutting down EC2')
+    queue_shutdown = sqs.get_queue_by_name(QueueName=outgoing_message_queue_name)
+    msg_data = {}
+    msg_data['msgBody'] = "Stop Instance"
+    msg_data['msgAttributes'] = {'instance_id': {'StringValue': ec2_instance_id, 'DataType': 'String'},
+                                'action': {'StringValue': 'stop', 'DataType': 'String'}}
+    try:
+        response = queue_shutdown.send_message(MessageBody=msg_data['msgBody'], MessageAttributes=msg_data['msgAttributes'])
+        logging.info(response)
+    except ClientError as e:
+        logging.error(e)
+    return True
+
+
 def main():
+    config = configparser.ConfigParser()
+    config.read('skills-demo.config')
+
+    ec2_instance_id = config['default']['ec2_instance_id']
+    minutes_without_message_limit = config['default']['minutes_without_message_limit']
+    incoming_message_queue_name = config['default']['incoming_message_queue_name']
+    outgoing_message_queue_name = config['default']['outgoing_message_queue_name']
+
     logging.basicConfig(level=logging.INFO, filemode='w', format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S')
     logging.info('Application Starting')
     logging.info('EC2 Instance: ' + ec2_instance_id)
@@ -44,7 +69,7 @@ def main():
 
     while last_message_received > datetime.now() - timedelta(minutes=int(minutes_without_message_limit)):
         # poll the queue
-        logging.info('Start Loop: {}'.format(last_message_received))
+        logging.info('Polling Queue: {}'.format(incoming_message_queue_name))
         messages = queue.receive_messages(WaitTimeSeconds=20)
         # if message received, and it's not empty.
         if bool(messages):
@@ -75,15 +100,9 @@ def main():
                 logging.info('Merge Result: {}'.format(result))
                 message.delete()
                 logging.info('Message removed from queue.')
+    send_sqs_message(ec2_instance_id, outgoing_message_queue_name)
     logging.info('Completed')
 
 
 if __name__ == '__main__':
-    config = configparser.ConfigParser()
-    config.read('skills-demo.config')
-
-    ec2_instance_id = config['default']['ec2_instance_id']
-    minutes_without_message_limit = config['default']['minutes_without_message_limit']
-    incoming_message_queue_name = config['default']['incoming_message_queue_name']
-    outgoing_message_queue_name = config['default']['outgoing_message_queue_name']
     main()

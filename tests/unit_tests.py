@@ -238,22 +238,5 @@ class TestGetDataFrame(unittest.TestCase):
         self.assertIsNone(result)
 
 
-# Manual tests to do after unit tests are done:
-# 1 - for both known file types
-#   - start with no mstr, post two different files
-# 2 - unknown file
-# 3 - known file with different formats - how does it handle them (and does additional logic need added instead of the
-#       union/dedupe).
-#   - adding new columns
-#   - rearranging columns
-# 4 - known file with wrong primary key
-# 5 - unknown file with wrong primary key
-# ^ I have up to here...
-# 6 - large files
-# 7 - post multiple files at once
-# 8 - make sure this will kill itself if no files in X amount of time.
-#   - also make sure adding files will reset the kill time
-
-
 if __name__ == '__main__':
     unittest.main()
