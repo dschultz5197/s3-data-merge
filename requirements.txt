@@ -1,0 +1,6 @@
+boto3
+pandas
+s3fs==0.3.3
+boto=1.9.217
+boto=1.12.217
+fsspec=0.4.3
